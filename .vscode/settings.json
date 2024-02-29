@@ -1,0 +1,11 @@
+{
+    "clangd.arguments": [
+        "--compile-commands-dir=build", 
+        "--clang-tidy", 
+        "-header-insertion=never", 
+        "-j=8", 
+        "--background-index", 
+        "--pch-storage=memory"
+    ],
+    "editor.tabSize": 2
+}
