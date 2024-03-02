@@ -7,5 +7,18 @@
         "--background-index", 
         "--pch-storage=memory"
     ],
-    "editor.tabSize": 2
+    "editor.tabSize": 2, 
+    "clang-tidy.buildPath": "build-debug",
+    "clang-tidy.checks": [
+        "modernize-*", 
+        "readability-*", 
+        "performance-*", 
+        "portability-*", 
+        "bugprone-*", 
+        "clang-analyzer-*", 
+        "misc-*",
+        "google-*", 
+        // "boost-*", 
+        "cppcoreguidelines-*",
+    ]
 }

@@ -69,7 +69,7 @@ void Viewer::init(int width, int height) {
   }
 
   // create window
-  string title = renderer ? "CS184: " + renderer->name() : "CS184";
+  string title = renderer ? "Graphics: " + renderer->name() : "Graphics";
   window = glfwCreateWindow( width, height, title.c_str(), NULL, NULL );
   if (!window) {
     out_err("Error: could not create window!");
