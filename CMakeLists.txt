@@ -63,6 +63,11 @@ target_link_libraries(draw PUBLIC OpenGL::GL)
 target_link_libraries(draw PUBLIC OpenGL::GLU)
 
 target_link_libraries(draw PRIVATE CGL)
+if (BUILD_DEBUG)
+  target_compile_options(draw PUBLIC -g3 -O0)
+else()
+  target_compile_options(draw PUBLIC -O3)
+endif()
 
 #-------------------------------------------------------------------------------
 # Add subdirectories

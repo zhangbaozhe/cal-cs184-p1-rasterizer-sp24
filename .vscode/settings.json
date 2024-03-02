@@ -8,7 +8,7 @@
         "--pch-storage=memory"
     ],
     "editor.tabSize": 2, 
-    "clang-tidy.buildPath": "build-debug",
+    "clang-tidy.buildPath": "build",
     "clang-tidy.checks": [
         "modernize-*", 
         "readability-*", 

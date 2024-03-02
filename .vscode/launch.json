@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceRoot}/build-debug/draw",
-            "args": ["svg/basic/test6.svg"],
+            "args": ["svg/basic/test4.svg"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

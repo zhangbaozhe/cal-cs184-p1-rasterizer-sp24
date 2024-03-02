@@ -76,12 +76,15 @@ void RasterizerImp::rasterize_line(float x0, float y0, float x1, float y1,
 void RasterizerImp::rasterize_triangle(float x0, float y0, float x1, float y1,
                                        float x2, float y2, Color color) {
   // TODO: Task 1: Implement basic triangle rasterization here, no supersampling
+  // TODO: Task 2: Update to implement super-sampled rasterization
 
   Vector2D a(x0, y0);
   Vector2D b(x1, y1);
   Vector2D c(x2, y2);
+  size_t supersample_width = sqrt(sample_rate);
+  double offset = 1.0 / (supersample_width * 2.0);
 
-  // winding a -> b -> c 
+  // winding a -> b -> c
   auto z = cross(b - a, c - a);
   if (z < 0) {
     swap(b, c);
@@ -89,24 +92,41 @@ void RasterizerImp::rasterize_triangle(float x0, float y0, float x1, float y1,
 
   auto [x_min, x_max] = minmax({x0, x1, x2});
   auto [y_min, y_max] = minmax({y0, y1, y2});
+  // clipping
+  x_min = max(0.0F, x_min);
+  x_max = min((float)width, x_max);
+  y_min = max(0.0F, y_min);
+  y_max = min((float)height, y_max);
 
   // TODO(Baozhe Zhang): make this super fast
-  for (float x = x_min; x <= x_max; x += 1.0F) {
-    for (float y = y_min; y <= y_max; y += 1.0F) {
+  for (float x = x_min; x < x_max; x += 1.0F) {
+    for (float y = y_min; y < y_max; y += 1.0F) {
 
-      // sample point
-      Vector2D p(floor(x) + 0.5, floor(y) + 0.5);
+      auto pixel_x = floor(x);
+      auto pixel_y = floor(y);
 
-      auto z1 = cross(b - a, p - a);
-      auto z2 = cross(c - b, p - b);
-      auto z3 = cross(a - c, p - c);
-      if (z1 >= 0.0 && z2 >= 0.0 && z3 >= 0.0) {
-        rasterize_point((float)p.x, (float)p.y, color);
+      // trivial super sampling iterations
+      for (size_t x_idx_super = 0; x_idx_super < supersample_width; x_idx_super++) {
+        for (size_t y_idx_super = 0; y_idx_super < supersample_width; y_idx_super++) {
+
+          // sample point
+          Vector2D p(pixel_x + x_idx_super / supersample_width + offset,
+                     pixel_y + y_idx_super / supersample_width + offset);
+
+          // (super) sample idx
+          size_t idx = sample_rate * ( (size_t)pixel_y * width + (size_t)pixel_x ) + y_idx_super * supersample_width + x_idx_super;
+
+          auto z1 = cross(b - a, p - a);
+          auto z2 = cross(c - b, p - b);
+          auto z3 = cross(a - c, p - c);
+          if (z1 >= 0.0 && z2 >= 0.0 && z3 >= 0.0) {
+            // rasterize_point((float)p.x, (float)p.y, color);
+            sample_buffer.at(idx) = color;
+          }
+        }
       }
     }
   }
-
-  // TODO: Task 2: Update to implement super-sampled rasterization
 }
 
 void RasterizerImp::rasterize_interpolated_color_triangle(float x0, float y0,
@@ -169,8 +189,13 @@ void RasterizerImp::resolve_to_framebuffer() {
 
   for (int x = 0; x < width; ++x) {
     for (int y = 0; y < height; ++y) {
-      // FIXME: down sampling
-      Color col = sample_buffer[sample_rate * (y * width + x)];
+      // Avg down sampling
+      Color col(0, 0, 0);
+      for (size_t i = 0; i < sample_rate; i++) {
+        col += sample_buffer.at(sample_rate * (y * width + x) + i);
+      }
+      col = std::move(
+          Color(col.r / sample_rate, col.g / sample_rate, col.b / sample_rate));
 
       for (int k = 0; k < 3; ++k) {
         this->rgb_framebuffer_target[3 * (y * width + x) + k] =
