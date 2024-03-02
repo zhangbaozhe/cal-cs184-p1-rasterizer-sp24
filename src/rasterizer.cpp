@@ -92,29 +92,28 @@ void RasterizerImp::rasterize_triangle(float x0, float y0, float x1, float y1,
 
   auto [x_min, x_max] = minmax({x0, x1, x2});
   auto [y_min, y_max] = minmax({y0, y1, y2});
-  // clipping
-  x_min = max(0.0F, x_min);
-  x_max = min((float)width, x_max);
-  y_min = max(0.0F, y_min);
-  y_max = min((float)height, y_max);
 
-  // TODO(Baozhe Zhang): make this super fast
-  for (float x = x_min; x < x_max; x += 1.0F) {
-    for (float y = y_min; y < y_max; y += 1.0F) {
+  size_t px_min = x_min < 0.0F ? 0 : (size_t)x_min;
+  size_t px_max = x_max > (float)width ? width - 1 : (size_t)x_max;
+  size_t py_min = y_min < 0.0F ? 0 : (size_t)y_min;
+  size_t py_max = y_max > (float)height ? height - 1 : (size_t)y_max;
 
-      auto pixel_x = floor(x);
-      auto pixel_y = floor(y);
+
+  // TODO(Baozhe Zhang): make this faster 
+  // now is slow
+  for (size_t px = px_min; px <= px_max; px++) {
+    for (size_t py = py_min; py <= py_max; py++) {
 
       // trivial super sampling iterations
       for (size_t x_idx_super = 0; x_idx_super < supersample_width; x_idx_super++) {
         for (size_t y_idx_super = 0; y_idx_super < supersample_width; y_idx_super++) {
 
           // sample point
-          Vector2D p(pixel_x + x_idx_super / supersample_width + offset,
-                     pixel_y + y_idx_super / supersample_width + offset);
+          Vector2D p(px + (double)x_idx_super / supersample_width + offset,
+                     py + (double)y_idx_super / supersample_width + offset);
 
           // (super) sample idx
-          size_t idx = sample_rate * ( (size_t)pixel_y * width + (size_t)pixel_x ) + y_idx_super * supersample_width + x_idx_super;
+          size_t idx = sample_rate * (py * width + px) + y_idx_super * supersample_width + x_idx_super;
 
           auto z1 = cross(b - a, p - a);
           auto z2 = cross(c - b, p - b);
