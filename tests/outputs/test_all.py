@@ -21,8 +21,24 @@ print(draw_binary)
 def compare(output, reference):
     # For now, just do a binary diff. May want to use a per-pixel comparison
     # instead.
+    import cv2
+    import numpy as np
 
-    return filecmp.cmp(output, reference)
+    # return filecmp.cmp(output, reference)
+    a = cv2.imread(output)
+    b = cv2.imread(reference)
+    difference = cv2.subtract(a, b)
+    print(difference.shape)
+    if np.any(difference.flatten()):
+        non_zero = np.nonzero(difference != 0)
+        print(non_zero)
+        print(a[non_zero])
+        print(b[non_zero])
+        difference[non_zero] = 255
+        cv2.imshow("difference", difference)
+        cv2.waitKey(-1)
+
+    return not np.any(difference)
 
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)

@@ -3,3 +3,4 @@ build-*/
 tests/outputs/outputs/
 cmake-build-debug/
 cmake-build-release/
+.DS_Store
