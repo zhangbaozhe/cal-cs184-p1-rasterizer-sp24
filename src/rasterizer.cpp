@@ -294,7 +294,7 @@ void RasterizerImp::rasterize_textured_triangle(float x0, float y0, float u0,
             Color color = tex.sample({
                 uv, Vector2D(), Vector2D(), this->psm, this->lsm
             });
-            sample_buffer.at(idx) = color;
+            sample_buffer[idx] = color;
           }
         }
       }
