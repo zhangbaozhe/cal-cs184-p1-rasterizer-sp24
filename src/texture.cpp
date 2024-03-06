@@ -9,9 +9,14 @@ namespace CGL {
   Color Texture::sample(const SampleParams& sp) {
     // TODO: Task 6: Fill this in.
 
+    if (sp.p_uv.x > 1 || sp.p_uv.y < 0 || sp.p_uv.y > 1 || sp.p_uv.y < 0)
+      return Color(1, 0, 1);
 
-// return magenta for invalid level
-    return Color(1, 0, 1);
+    if (sp.psm == P_NEAREST) {
+      return sample_nearest(sp.p_uv);
+    } else {
+      return sample_bilinear(sp.p_uv);
+    }
   }
 
   float Texture::get_level(const SampleParams& sp) {
@@ -30,11 +35,9 @@ namespace CGL {
     // TODO: Task 5: Fill this in.
     auto& mip = mipmap[level];
 
-
-
-
-    // return magenta for invalid level
-    return Color(1, 0, 1);
+    int tx = round(uv.x * (mip.width - 1));
+    int ty = round(uv.y * (mip.height - 1));
+    return mip.get_texel(tx, ty);
   }
 
   Color Texture::sample_bilinear(Vector2D uv, int level) {
