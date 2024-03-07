@@ -2,6 +2,8 @@
 
 ## Build and run
 
-## Task implementation ideas
-- **Task1: Draw a single color triangles**
-  - TODO
+```
+cmake -B build
+cmake --build build
+```
+
