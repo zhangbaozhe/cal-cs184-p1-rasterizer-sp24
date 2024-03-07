@@ -27,9 +27,12 @@ void RasterizerImp::fill_pixel(size_t x, size_t y, Color c) {
   // triangles)
 
   // sample_buffer[y * width + x] = c;
-  auto start_iter = sample_buffer.begin() + (sample_rate * (y * width + x) + 0);
-  auto end_iter = start_iter + sample_rate;
-  std::fill(start_iter, end_iter, c);
+  // auto start_iter = sample_buffer.begin() + (sample_rate * (y * width + x) + 0);
+  // auto end_iter = start_iter + sample_rate;
+  // std::fill(start_iter, end_iter, c);
+  rgb_framebuffer_target[3 * (y * width + x)    ] = (unsigned char)(c.r * 255);
+  rgb_framebuffer_target[3 * (y * width + x) + 1] = (unsigned char)(c.g * 255);
+  rgb_framebuffer_target[3 * (y * width + x) + 2] = (unsigned char)(c.b * 255);
 }
 
 // Rasterize a point: simple example to help you start familiarizing
@@ -46,8 +49,9 @@ void RasterizerImp::rasterize_point(float x, float y, Color color) {
   if (sy < 0 || sy >= height)
     return;
 
-  fill_pixel(sx, sy, color);
-  return;
+  // fill_pixel(sx, sy, color);
+  for (int i = 0; i < sample_rate; i++)
+    sample_buffer[sample_rate * (sy * width + sx) + i] = color;
 }
 
 // Rasterize a line.
@@ -92,11 +96,15 @@ void RasterizerImp::rasterize_triangle(float x0, float y0, float x1, float y1,
     swap(b, c);
   }
 
-  const double denominator = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
-  const auto barycentric_coord = [denominator, a, b, c] (const Vector2D &p) -> Vector3D {
+  const double denominator =
+      (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
+  const auto barycentric_coord = [denominator, a, b,
+                                  c](const Vector2D &p) -> Vector3D {
     Vector3D result;
-    result.x = ((b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y)) / denominator;
-    result.y = ((c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y)) / denominator;
+    result.x =
+        ((b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y)) / denominator;
+    result.y =
+        ((c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y)) / denominator;
     result.z = 1 - result.x - result.y;
     return result;
   };
@@ -109,14 +117,16 @@ void RasterizerImp::rasterize_triangle(float x0, float y0, float x1, float y1,
   size_t py_min = y_min < 0.0F ? 0 : (size_t)y_min;
   size_t py_max = y_max > (float)height ? height - 1 : (size_t)y_max;
 
-  // TODO(Baozhe Zhang): make this faster 
+  // TODO(Baozhe Zhang): make this faster
   // now is slow
   for (size_t px = px_min; px <= px_max; px++) {
     for (size_t py = py_min; py <= py_max; py++) {
 
       // trivial super sampling iterations
-      for (size_t x_idx_super = 0; x_idx_super < supersample_width; x_idx_super++) {
-        for (size_t y_idx_super = 0; y_idx_super < supersample_width; y_idx_super++) {
+      for (size_t x_idx_super = 0; x_idx_super < supersample_width;
+           x_idx_super++) {
+        for (size_t y_idx_super = 0; y_idx_super < supersample_width;
+             y_idx_super++) {
 
           // sample point
           Vector2D p(px + (double)x_idx_super / supersample_width + offset,
@@ -125,19 +135,18 @@ void RasterizerImp::rasterize_triangle(float x0, float y0, float x1, float y1,
           Vector3D lambda = barycentric_coord(p);
 
           // (super) sample idx
-          size_t idx = sample_rate * (py * width + px) + y_idx_super * supersample_width + x_idx_super;
+          size_t idx = sample_rate * (py * width + px) +
+                       y_idx_super * supersample_width + x_idx_super;
 
-          // auto z1 = cross(b - a, p - a);
-          // auto z2 = cross(c - b, p - b);
-          // auto z3 = cross(a - c, p - c);
-          if (lambda.x >= 0.0 
-              && lambda.x <= 1.0
-              && lambda.y >= 0.0
-              && lambda.y <= 1.0
-              && lambda.z >= 0.0
-              && lambda.z <= 1.0) {
+          auto z1 = cross(b - a, p - a);
+          auto z2 = cross(c - b, p - b);
+          auto z3 = cross(a - c, p - c);
+          // FIXME (Baozhe): using barycentric coord sometimes cannot detect the edge?
+          // if (lambda.x >= 0.0 && lambda.x <= 1.0 && lambda.y >= 0.0 &&
+              // lambda.y <= 1.0 && lambda.z >= 0.0 && lambda.z <= 1.0) {
+          if (z1 >= 0.0 && z2 >= 0.0 && z3 >= 0.0) {
             // rasterize_point((float)p.x, (float)p.y, color);
-            sample_buffer.at(idx) = color;
+            sample_buffer[idx] = color;
           }
         }
       }
@@ -166,11 +175,15 @@ void RasterizerImp::rasterize_interpolated_color_triangle(float x0, float y0,
     swap(b, c);
   }
 
-  const double denominator = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
-  const auto barycentric_coord = [denominator, a, b, c] (const Vector2D &p) -> Vector3D {
+  const double denominator =
+      (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
+  const auto barycentric_coord = [denominator, a, b,
+                                  c](const Vector2D &p) -> Vector3D {
     Vector3D result;
-    result.x = ((b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y)) / denominator;
-    result.y = ((c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y)) / denominator;
+    result.x =
+        ((b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y)) / denominator;
+    result.y =
+        ((c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y)) / denominator;
     result.z = 1 - result.x - result.y;
     return result;
   };
@@ -183,14 +196,16 @@ void RasterizerImp::rasterize_interpolated_color_triangle(float x0, float y0,
   size_t py_min = y_min < 0.0F ? 0 : (size_t)y_min;
   size_t py_max = y_max > (float)height ? height - 1 : (size_t)y_max;
 
-  // TODO(Baozhe Zhang): make this faster 
+  // TODO(Baozhe Zhang): make this faster
   // now is slow
   for (size_t px = px_min; px <= px_max; px++) {
     for (size_t py = py_min; py <= py_max; py++) {
 
       // trivial super sampling iterations
-      for (size_t x_idx_super = 0; x_idx_super < supersample_width; x_idx_super++) {
-        for (size_t y_idx_super = 0; y_idx_super < supersample_width; y_idx_super++) {
+      for (size_t x_idx_super = 0; x_idx_super < supersample_width;
+           x_idx_super++) {
+        for (size_t y_idx_super = 0; y_idx_super < supersample_width;
+             y_idx_super++) {
 
           // sample point
           Vector2D p(px + (double)x_idx_super / supersample_width + offset,
@@ -200,19 +215,14 @@ void RasterizerImp::rasterize_interpolated_color_triangle(float x0, float y0,
           Color color = lambda.x * c0 + lambda.y * c1 + lambda.z * c2;
 
           // (super) sample idx
-          size_t idx = sample_rate * (py * width + px) + y_idx_super * supersample_width + x_idx_super;
+          size_t idx = sample_rate * (py * width + px) +
+                       y_idx_super * supersample_width + x_idx_super;
 
-          // auto z1 = cross(b - a, p - a);
-          // auto z2 = cross(c - b, p - b);
-          // auto z3 = cross(a - c, p - c);
-          if (lambda.x >= 0.0 
-              && lambda.x <= 1.0
-              && lambda.y >= 0.0
-              && lambda.y <= 1.0
-              && lambda.z >= 0.0
-              && lambda.z <= 1.0) {
-            // rasterize_point((float)p.x, (float)p.y, color);
-            sample_buffer.at(idx) = color;
+          auto z1 = cross(b - a, p - a);
+          auto z2 = cross(c - b, p - b);
+          auto z3 = cross(a - c, p - c);
+          if (z1 >= 0.0 && z2 >= 0.0 && z3 >= 0.0) {
+            sample_buffer[idx] = color;
           }
         }
       }
@@ -231,7 +241,6 @@ void RasterizerImp::rasterize_textured_triangle(float x0, float y0, float u0,
   // struct. Hint: You can reuse code from
   // rasterize_triangle/rasterize_interpolated_color_triangle
 
-
   Vector2D a(x0, y0);
   Vector2D b(x1, y1);
   Vector2D c(x2, y2);
@@ -248,14 +257,24 @@ void RasterizerImp::rasterize_textured_triangle(float x0, float y0, float u0,
     swap(uv1, uv2);
   }
 
-  const double denominator = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
-  const auto barycentric_coord = [denominator, a, b, c] (const Vector2D &p) -> Vector3D {
+  const double denominator =
+      (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
+  const auto barycentric_coord = [denominator, a, b,
+                                  c](const Vector2D &p) -> Vector3D {
     Vector3D result;
-    result.x = ((b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y)) / denominator;
-    result.y = ((c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y)) / denominator;
+    result.x =
+        ((b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y)) / denominator;
+    result.y =
+        ((c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y)) / denominator;
     result.z = 1 - result.x - result.y;
     // assert(result.x + result.y + result.z == 1.0);
     return result;
+  };
+  const auto is_in_triangle = [a, b, c](const Vector2D &p) -> bool {
+    auto z1 = cross(b - a, p - a);
+    auto z2 = cross(c - b, p - b);
+    auto z3 = cross(a - c, p - c);
+    return z1 >= 0.0 && z2 >= 0.0 && z3 >= 0.0;
   };
 
   auto [x_min, x_max] = minmax({x0, x1, x2});
@@ -266,38 +285,41 @@ void RasterizerImp::rasterize_textured_triangle(float x0, float y0, float u0,
   size_t py_min = y_min < 0.0F ? 0 : (size_t)y_min;
   size_t py_max = y_max > (float)height ? height - 1 : (size_t)y_max;
 
-  // TODO(Baozhe Zhang): make this faster 
+  // TODO(Baozhe Zhang): make this faster
   // now is slow
   for (size_t px = px_min; px <= px_max; px++) {
     for (size_t py = py_min; py <= py_max; py++) {
 
       // trivial super sampling iterations
-      for (size_t x_idx_super = 0; x_idx_super < supersample_width; x_idx_super++) {
-        for (size_t y_idx_super = 0; y_idx_super < supersample_width; y_idx_super++) {
+      for (size_t x_idx_super = 0; x_idx_super < supersample_width;
+           x_idx_super++) {
+        for (size_t y_idx_super = 0; y_idx_super < supersample_width;
+             y_idx_super++) {
 
           // sample point
           Vector2D p(px + (double)x_idx_super / supersample_width + offset,
                      py + (double)y_idx_super / supersample_width + offset);
 
           Vector3D lambda = barycentric_coord(p);
-          Vector2D uv = lambda.x * uv0 + lambda.y * uv1 + lambda.z * uv2;
 
-          // (super) sample idx
-          size_t idx = sample_rate * (py * width + px) + y_idx_super * supersample_width + x_idx_super;
+          if (is_in_triangle(p)) {
 
-          // auto z1 = cross(b - a, p - a);
-          // auto z2 = cross(c - b, p - b);
-          // auto z3 = cross(a - c, p - c);
-          if (lambda.x >= 0.0 
-              && lambda.x <= 1.0
-              && lambda.y >= 0.0
-              && lambda.y <= 1.0
-              && lambda.z >= 0.0
-              && lambda.z <= 1.0) {
-            // rasterize_point((float)p.x, (float)p.y, color);
-            Color color = tex.sample({
-                uv, Vector2D(), Vector2D(), this->psm, this->lsm
-            });
+            Vector2D p_dx = p + Vector2D(1.0 / supersample_width, 0.0);
+            Vector2D p_dy = p + Vector2D(0.0, 1.0 / supersample_width);
+            Vector3D lambda_p_dx = barycentric_coord(p_dx);
+            Vector3D lambda_p_dy = barycentric_coord(p_dy);
+
+            Vector2D uv = lambda.x * uv0 + lambda.y * uv1 + lambda.z * uv2;
+            Vector2D uv_p_dx =
+                lambda_p_dx.x * uv0 + lambda_p_dx.y * uv1 + lambda_p_dx.z * uv2;
+            Vector2D uv_p_dy =
+                lambda_p_dy.x * uv0 + lambda_p_dy.y * uv1 + lambda_p_dy.z * uv2;
+            // (super) sample idx
+            size_t idx = sample_rate * (py * width + px) +
+                         y_idx_super * supersample_width + x_idx_super;
+
+            Color color = tex.sample(
+                {uv, uv_p_dx - uv, uv_p_dy - uv, this->psm, this->lsm});
             sample_buffer[idx] = color;
           }
         }
@@ -345,20 +367,23 @@ void RasterizerImp::resolve_to_framebuffer() {
   for (int x = 0; x < width; ++x) {
     for (int y = 0; y < height; ++y) {
       // Avg down sampling
-      Color col(0, 0, 0);
+      Color col = Color::Black;
       for (size_t i = 0; i < sample_rate; i++) {
-        col += sample_buffer.at(sample_rate * (y * width + x) + i);
+        col += sample_buffer[sample_rate * (y * width + x) + i];
       }
-      col = std::move(
-          Color(col.r / sample_rate, col.g / sample_rate, col.b / sample_rate));
+      col.r /= sample_rate;
+      col.g /= sample_rate;
+      col.b /= sample_rate;
+      fill_pixel(x, y, col);
 
-      for (int k = 0; k < 3; ++k) {
-        // FIXME: floating point error?
-        // When I test interpolation (test7), there are 4 pixels that are not identical to 
-        // the reference one. The R, G, or B channel's values are larger by one.
-        this->rgb_framebuffer_target[3 * (y * width + x) + k] =
-            static_cast<unsigned char>((&col.r)[k] * 255.0F); 
-      }
+      // for (int k = 0; k < 3; ++k) {
+      //   // FIXME: floating point error?
+      //   // When I test interpolation (test7), there are 4 pixels that are not
+      //   // identical to the reference one. The R, G, or B channel's values are
+      //   // larger by one.
+      //   this->rgb_framebuffer_target[3 * (y * width + x) + k] =
+      //       static_cast<unsigned char>((&col.r)[k] * 255.0F);
+      // }
     }
   }
 }

@@ -12,19 +12,41 @@ namespace CGL {
     if (sp.p_uv.x > 1 || sp.p_uv.y < 0 || sp.p_uv.y > 1 || sp.p_uv.y < 0)
       return Color(1, 0, 1);
 
-    if (sp.psm == P_NEAREST) {
-      return sample_nearest(sp.p_uv);
-    } else {
-      return sample_bilinear(sp.p_uv);
+
+    switch (sp.lsm) {
+      case L_ZERO: {
+        return sp.psm == P_NEAREST ? sample_nearest(sp.p_uv) : sample_bilinear(sp.p_uv);  
+      }
+      case L_NEAREST: {
+        int level = round(get_level(sp));
+        level = min(max(0, level), (int)mipmap.size() - 1);
+        return sp.psm == P_NEAREST ? sample_nearest(sp.p_uv, level) : sample_bilinear(sp.p_uv, level);  
+      }
+      case L_LINEAR: {
+        int l_lower = floor(get_level(sp));
+        int l_upper = ceil(get_level(sp));
+        l_lower = min(max(0, l_lower), (int)mipmap.size() - 1);
+        l_upper = min(max(0, l_upper), (int)mipmap.size() - 1);
+        return sp.psm == P_NEAREST ? 
+            (sample_nearest(sp.p_uv, l_lower) + sample_nearest(sp.p_uv, l_upper)) * 0.5 : 
+            (sample_bilinear(sp.p_uv, l_lower) + sample_bilinear(sp.p_uv, l_upper)) * 0.5;
+      }
+      default:
+        return Color(1, 0, 1);
     }
   }
 
   float Texture::get_level(const SampleParams& sp) {
     // TODO: Task 6: Fill this in.
 
-
-
-    return 0;
+    Vector2D p_tx_uv = Vector2D(
+        sp.p_dx_uv.x * (width - 1), 
+        sp.p_dx_uv.y * (height - 1));
+    Vector2D p_ty_uv = Vector2D(
+        sp.p_dy_uv.x * (width - 1), 
+        sp.p_dy_uv.y * (height - 1));
+    float L = max(p_tx_uv.norm(), p_ty_uv.norm());
+    return log2(L);
   }
 
   Color MipLevel::get_texel(int tx, int ty) {
@@ -44,11 +66,23 @@ namespace CGL {
     // TODO: Task 5: Fill this in.
     auto& mip = mipmap[level];
 
+    // c2 --- c3
+    //  |      |
+    // c1 --- c4
 
+    float tx = uv.x * (mip.width - 1);
+    float ty = uv.y * (mip.height - 1);
+    float s = tx - floor(tx);
+    float t = ty - floor(ty);
+    Color c1 = mip.get_texel(floor(tx), floor(ty));
+    Color c2 = mip.get_texel(floor(tx), ceil(ty));
+    Color c3 = mip.get_texel(ceil(tx), ceil(ty));
+    Color c4 = mip.get_texel(ceil(tx), floor(ty));
 
+    Color temp1 = c1 + s * (c4 + (-1 * c1));
+    Color temp2 = c2 + s * (c3 + (-1 * c2));
 
-    // return magenta for invalid level
-    return Color(1, 0, 1);
+    return temp1 + t * (temp2 + (-1 * temp1));
   }
 
 

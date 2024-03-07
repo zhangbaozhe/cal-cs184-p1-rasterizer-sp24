@@ -10,7 +10,7 @@ option(BUILD_DEBUG     "Build with debug settings"    OFF)
 option(BUILD_DOCS      "Build documentation"          OFF)
 option(BUILD_CUSTOM    "Build without reference"      OFF)
 
-set(BUILD_DEBUG ${BUILD_DEBUG} CACHE BOOL "Build debug" FORCE)
+# set(BUILD_DEBUG ${BUILD_DEBUG} CACHE BOOL "Build debug" FORCE)
 
 if (BUILD_DEBUG)
   set(CMAKE_BUILD_TYPE Debug)
