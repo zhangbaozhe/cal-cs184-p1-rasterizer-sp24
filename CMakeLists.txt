@@ -14,6 +14,8 @@ set(BUILD_DEBUG ${BUILD_DEBUG} CACHE BOOL "Build debug" FORCE)
 
 if (BUILD_DEBUG)
   set(CMAKE_BUILD_TYPE Debug)
+else()
+  set(CMAKE_BUILD_TYPE Release)
 endif()
 
 #-------------------------------------------------------------------------------

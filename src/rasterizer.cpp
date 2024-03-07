@@ -1,3 +1,5 @@
+#include <cassert>
+
 #include "rasterizer.h"
 
 using namespace std;
@@ -243,6 +245,7 @@ void RasterizerImp::rasterize_textured_triangle(float x0, float y0, float u0,
   auto z = cross(b - a, c - a);
   if (z < 0) {
     swap(b, c);
+    swap(uv1, uv2);
   }
 
   const double denominator = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
@@ -251,6 +254,7 @@ void RasterizerImp::rasterize_textured_triangle(float x0, float y0, float u0,
     result.x = ((b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y)) / denominator;
     result.y = ((c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y)) / denominator;
     result.z = 1 - result.x - result.y;
+    // assert(result.x + result.y + result.z == 1.0);
     return result;
   };
 
