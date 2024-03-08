@@ -1,6 +1,4 @@
-# Assignment 3
-
-## Build and run
+# Build and run
 
 ```
 cmake -B build
